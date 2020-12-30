@@ -1,0 +1,117 @@
+#Arslaan Malik Playbook
+-
+    name: Play 1
+    hosts: malik
+    
+    tasks:
+      - name: Install Desktop packages
+        apt: name={{item}} state=present update_cache=yes
+        with_items:
+          - vim
+          - nano
+          - openssl
+          - curl
+          - wget
+          - net-tools
+          - composer
+          - supervisor
+          - redis-server
+          
+      - name: Install PHP All extensions and MYSQL Packages
+        apt: name={{ item }} update_cache=yes state=latest
+        loop: [ 'mysql-server', 'python3-pymysql','php7.4','php7.4-cli','php7.4-curl','php7.4-fpm','php7.4-gd','php7.4-xml','php7.4-mbstring','php7.4-soap','php7.4-zip','php7.4-dev','php7.4-mysql' ]
+
+      - name: Nginx Setup
+        apt: pkg=nginx state=present update_cache=true
+      - name: Ensure nginx is at the latest version
+        apt: name=nginx state=latest
+      - name: Start nginx
+        service:
+          name: nginx
+          state: started
+
+      - name: Apache Setup
+        apt: pkg=apache2 state=present update_cache=true
+      - name: Ensure Apache is at the latest version
+        apt: name=apache2 state=latest
+
+      - name: Install aptitude using apt
+        apt: name=aptitude state=latest update_cache=yes force_apt_get=yes
+
+      - name: Install required system packages
+        apt: name={{ item }} state=latest update_cache=yes
+        loop: [ 'apt-transport-https', 'ca-certificates', 'curl', 'software-properties-common', 'python3-pip', 'virtualenv', 'python3-setuptools']
+      - name: Add Docker GPG apt Key
+        apt_key:
+          url: https://download.docker.com/linux/ubuntu/gpg
+          state: present
+      - name: Add Docker Repository
+        apt_repository:
+          repo: deb https://download.docker.com/linux/ubuntu bionic stable
+          state: present
+      - name: Update apt and install docker-ce
+        apt: update_cache=yes name=docker-ce state=latest
+      - name: Install Docker Module for Python
+        pip:
+          name: docker
+
+      - name: Install Docker Compose
+        get_url:
+            url: https://github.com/docker/compose/releases/download/1.26.2/docker-compose-Linux-x86_64
+            dest: /usr/local/bin/docker-compose
+            mode: 'u+x,g+x'
+
+      - name: Add Nodejs - repository key
+        apt_key:
+          url: "{{ item }}"
+        with_items:
+          - "http://deb.nodesource.com/gpgkey/nodesource.gpg.key"
+          - "https://dl.yarnpkg.com/debian/pubkey.gpg"
+      
+      - name: Nodejs - add repository
+        apt_repository:
+          repo: "{{ item }}"
+          state: present
+          update_cache: yes
+        with_items:
+          - "deb http://deb.nodesource.com/node_12.x bionic main"
+          - "deb-src http://deb.nodesource.com/node_12.x bionic main"
+          - "deb https://dl.yarnpkg.com/debian/ stable main"
+      
+      - name: Install yarn
+        apt:
+          name: yarn
+          state: "present"
+
+    #   - name: Install Node js
+    #     npm:
+    #         name: nodejs
+    #         global: yes
+      
+      - name: psql
+        apt_key:
+            url: https://www.postgresql.org/media/keys/ACCC4CF8.asc
+            state: present
+        become: true
+       
+      - name: create variable
+        command: bash -c "echo \"deb http://apt.postgresql.org/pub/repos/apt/ $(lsb_release -cs)-pgdg main\" "
+        register: repo_line
+   
+      - debug: 
+            msg: "{{ repo_line.stdout }}"
+         
+      - name: add postgresql repo 
+        apt_repository:
+            repo: "{{ repo_line.stdout }}"
+            state: present
+        become: true
+   
+      - name: install postgresql
+        apt:
+            name: "postgresql-11"
+            state: present
+            update_cache: yes
+        become: true
+      - name: Ensure the PostgreSQL service is running
+        service: name=postgresql state=started enabled=yes
